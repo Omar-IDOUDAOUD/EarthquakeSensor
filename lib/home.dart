@@ -36,10 +36,10 @@ class _HomeState extends State<Home> {
       body: ListView(
         // crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _getChartFram<AccelerometerEvent>(accelerometerEvents, 0),
-          _getChartFram<GyroscopeEvent>(gyroscopeEvents, 1),
-          _getChartFram<UserAccelerometerEvent>(userAccelerometerEvents, 2),
-          _getChartFram<MagnetometerEvent>(magnetometerEvents, 3)
+          _getChartFram(SensorsPlatform.instance.gyroscopeEvents, 0),
+          _getChartFram(SensorsPlatform.instance.userAccelerometerEvents, 1),
+          _getChartFram(SensorsPlatform.instance.accelerometerEvents, 2),
+          _getChartFram(SensorsPlatform.instance.magnetometerEvents, 3)
         ],
       ),
     );
@@ -47,29 +47,53 @@ class _HomeState extends State<Home> {
 
   final List<List<String>> _listOfLog = List.generate(4, (index) => []);
 
-  Widget _getChartFram<T>(Stream<T> stream, int i) {
+  Widget _getChartFram(Stream stream, int i) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ColoredBox(
         color: Colors.grey.shade200,
         child: SizedBox(
           height: 200,
-          child: StreamBuilder<T>(
-            stream: stream,
-            builder: (context, snapshot) {
-              _listOfLog[i].add(snapshot.data.toString());
-              return ListView.separated(
-                padding: EdgeInsets.all(10),
-                itemCount: _listOfLog.elementAt(i).length,
-                separatorBuilder: (_, i) => SizedBox(
-                  height: 5,
+          child: Builder(builder: (context) {
+            double minRecValue = 10;
+            return Column(
+              children: [
+                TextField(
+                  decoration: InputDecoration(hintText: 'min record value'),
+                  onChanged: (String v) {
+                    try {
+                      minRecValue = v as double;
+                    } catch (e) {
+                      minRecValue = 10;
+                    }
+                  },
                 ),
-                itemBuilder: (_, index) {
-                  return Text(_listOfLog.elementAt(i).elementAt(index));
-                },
-              );
-            },
-          ),
+                Expanded(
+                  child: StreamBuilder(
+                    stream: stream..listen((event) {}),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData &&
+                          (snapshot.data!.x as double).abs() >= 1 &&
+                          (snapshot.data!.y as double).abs() >= 1 &&
+                          (snapshot.data!.z as double).abs() >= 1)
+                        _listOfLog[i].add(snapshot.data.toString());
+                      return ListView.separated(
+                        reverse: true,
+                        padding: EdgeInsets.all(10),
+                        itemCount: _listOfLog.elementAt(i).length,
+                        separatorBuilder: (_, i) => SizedBox(
+                          height: 5,
+                        ),
+                        itemBuilder: (_, index) {
+                          return Text(_listOfLog.elementAt(i).elementAt(index));
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
