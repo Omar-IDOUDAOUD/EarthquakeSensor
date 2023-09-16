@@ -195,6 +195,7 @@ class _BodyState extends State<_Body> {
                 height: _c3s.height,
                 width: _c3s.width,
                 decoration: BoxDecoration(
+                  color: Colors.greenAccent,
                   shape: BoxShape.circle,
                 ),
               ),
