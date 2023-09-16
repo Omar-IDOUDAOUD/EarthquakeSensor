@@ -1,3 +1,7 @@
+// ignore_for_file: prefer_const_constructors
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
@@ -9,12 +13,6 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,69 +31,191 @@ class _HomeState extends State<Home> {
         centerTitle: true,
       ),
       backgroundColor: Colors.white,
-      body: ListView(
-        // crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _getChartFram(SensorsPlatform.instance.gyroscopeEvents, 0),
-          _getChartFram(SensorsPlatform.instance.userAccelerometerEvents, 1),
-          _getChartFram(SensorsPlatform.instance.accelerometerEvents, 2),
-          _getChartFram(SensorsPlatform.instance.magnetometerEvents, 3)
-        ],
-      ),
+      body: _Body(),
     );
   }
+}
 
-  final List<List<String>> _listOfLog = List.generate(4, (index) => []);
+class _Body extends StatefulWidget {
+  const _Body({super.key});
 
-  Widget _getChartFram(Stream stream, int i) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: ColoredBox(
-        color: Colors.grey.shade200,
-        child: SizedBox(
-          height: 200,
-          child: Builder(builder: (context) {
-            double minRecValue = 10;
-            return Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(hintText: 'min record value'),
-                  onChanged: (String v) {
-                    try {
-                      minRecValue = v as double;
-                    } catch (e) {
-                      minRecValue = 10;
-                    }
-                  },
+  @override
+  State<_Body> createState() => _BodyState();
+}
+
+class _BodyState extends State<_Body> {
+  double _minAlertValue = 1;
+  double _maxRecordValue = 10;
+
+  Size? _size;
+  final double _padding = 15;
+  late final Size _c1s;
+  late final Size _c2s;
+  late final Size _c3s;
+  Offset _indexCircleOffset = Offset.zero;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    // Timer.periodic(Duration(milliseconds: 900), (timer) {
+    //   //50 => _c1s-_cls3
+    //   //1 => 1*(_c1s-_cls3)/50
+    // });
+
+    SensorsPlatform.instance.accelerometerEvents.listen((event) {
+      final sfactor = Size.square(_c1s.width - _c3s.width);
+      final dx = event.x * sfactor.width / _maxRecordValue;
+      final dy = event.y * sfactor.width / _maxRecordValue;
+      final dz = event.z * sfactor.width / _maxRecordValue;
+      setState(() {
+        if (dx >= _minAlertValue ||
+            dz >= _minAlertValue ||
+            dy >= _minAlertValue) _eventsLog.add("x = $dx, y = $dy, z = $dz");
+        _indexCircleOffset = Offset(dx + (dx.isNegative ? dz : dz.ceil()), dy);
+      });
+    });
+  }
+
+  _initializeCirclesSizes() {
+    if (_size != null) return;
+    _size = MediaQuery.sizeOf(context);
+    _c1s = Size.square(_size!.width - _padding);
+    _c2s = _c1s / 1.5;
+    _c3s = _c1s / 3;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _initializeCirclesSizes();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Row(
+            children: [
+              Text(
+                'min alert value: $_minAlertValue',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
                 ),
-                Expanded(
-                  child: StreamBuilder(
-                    stream: stream..listen((event) {}),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData &&
-                          (snapshot.data!.x as double).abs() >= 1 &&
-                          (snapshot.data!.y as double).abs() >= 1 &&
-                          (snapshot.data!.z as double).abs() >= 1)
-                        _listOfLog[i].add(snapshot.data.toString());
-                      return ListView.separated(
-                        reverse: true,
-                        padding: EdgeInsets.all(10),
-                        itemCount: _listOfLog.elementAt(i).length,
-                        separatorBuilder: (_, i) => SizedBox(
-                          height: 5,
-                        ),
-                        itemBuilder: (_, index) {
-                          return Text(_listOfLog.elementAt(i).elementAt(index));
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          }),
+              ),
+              Spacer(),
+              IconButton(
+                icon: Icon(Icons.remove),
+                onPressed: () {
+                  if (_minAlertValue == 0) return;
+
+                  setState(() {
+                    _minAlertValue -= 0.5;
+                  });
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.add),
+                onPressed: () {
+                  setState(() {
+                    _minAlertValue += 0.5;
+                  });
+                },
+              ),
+            ],
+          ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          child: Row(
+            children: [
+              Text(
+                'max record value: $_maxRecordValue',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                ),
+              ),
+              Spacer(),
+              IconButton(
+                icon: Icon(Icons.remove),
+                onPressed: () {
+                  if (_maxRecordValue == 0) return;
+                  setState(() {
+                    _maxRecordValue -= 1;
+                  });
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.add),
+                onPressed: () {
+                  setState(() {
+                    _maxRecordValue += 1;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 10),
+        SizedBox.square(
+          dimension: _c1s.height,
+          child: Stack(
+            alignment: Alignment.center,
+            // fit: StackFit.expand,
+            children: [
+              Container(
+                height: _c1s.height,
+                width: _c1s.width,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.blue, width: 2),
+                ),
+              ),
+              Container(
+                height: _c2s.height,
+                width: _c2s.width,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.blue, width: 2),
+                ),
+              ),
+              AnimatedContainer(
+                onEnd: () {
+                  setState(() {
+                    _indexCircleOffset = Offset.zero;
+                  });
+                },
+                duration: Duration(milliseconds: 200),
+                transform: Matrix4.identity()
+                  ..setTranslationRaw(
+                    _indexCircleOffset.dx,
+                    _indexCircleOffset.dy,
+                    _indexCircleOffset.dx,
+                  ),
+                height: _c3s.height,
+                width: _c3s.width,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(15),
+            itemCount: _eventsLog.length,
+            separatorBuilder: (context, index) => SizedBox(
+              height: 5,
+            ),
+            itemBuilder: (_, i) {
+              return Text(_eventsLog.elementAt(i));
+            },
+          ),
+        )
+      ],
     );
   }
+
+  final List<String> _eventsLog = List.empty(growable: true);
 }
